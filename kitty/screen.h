@@ -30,28 +30,14 @@ typedef struct {
     SelectionExtendMode extend_mode;
 } Selection;
 
-#define SAVEPOINTS_SZ 256
-
 typedef struct {
     uint32_t utf8_state, utf8_codepoint, *g0_charset, *g1_charset;
     unsigned int current_charset;
     bool use_latin1;
     Cursor cursor;
     bool mDECOM, mDECAWM, mDECSCNM;
-
 } Savepoint;
 
-
-typedef struct {
-    Savepoint buf[SAVEPOINTS_SZ];
-    index_type start_of_data, count;
-} SavepointBuffer;
-
-
-typedef struct {
-    ScreenModes buf[SAVEPOINTS_SZ];
-    index_type start_of_data, count;
-} SavemodesBuffer;
 
 typedef struct {
     CPUCell *cpu_cells;
@@ -75,8 +61,8 @@ typedef struct {
     Selection url_range;
     bool use_latin1, selection_updated_once, is_dirty, scroll_changed;
     Cursor *cursor;
-    SavepointBuffer main_savepoints, alt_savepoints;
-    SavemodesBuffer modes_savepoints;
+    Savepoint main_savepoint, alt_savepoint;
+    ScreenModes modes_savepoint;
     PyObject *callbacks, *test_child;
     LineBuf *linebuf, *main_linebuf, *alt_linebuf;
     GraphicsManager *grman, *main_grman, *alt_grman;

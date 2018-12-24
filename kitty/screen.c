@@ -913,20 +913,6 @@ screen_linefeed(Screen *self) {
     screen_ensure_bounds(self, false, in_margins);
 }
 
-#define buffer_push(self, ans) { \
-    ans = (self)->buf + (((self)->start_of_data + (self)->count) % SAVEPOINTS_SZ); \
-    if ((self)->count == SAVEPOINTS_SZ) (self)->start_of_data = ((self)->start_of_data + 1) % SAVEPOINTS_SZ; \
-    else (self)->count++; \
-}
-
-#define buffer_pop(self, ans) { \
-    if ((self)->count == 0) ans = NULL; \
-    else { \
-        (self)->count--; \
-        ans = (self)->buf + (((self)->start_of_data + (self)->count) % SAVEPOINTS_SZ); \
-    } \
-}
-
 #define COPY_CHARSETS(self, sp) \
     sp->utf8_state = self->utf8_state; \
     sp->utf8_codepoint = self->utf8_codepoint; \
@@ -937,9 +923,7 @@ screen_linefeed(Screen *self) {
 
 void
 screen_save_cursor(Screen *self) {
-    SavepointBuffer *pts = self->linebuf == self->main_linebuf ? &self->main_savepoints : &self->alt_savepoints;
-    Savepoint *sp;
-    buffer_push(pts, sp);
+    Savepoint *sp = self->linebuf == self->main_linebuf ? &self->main_savepoint : &self->alt_savepoint;
     cursor_copy_to(self->cursor, &(sp->cursor));
     sp->mDECOM = self->modes.mDECOM;
     sp->mDECAWM = self->modes.mDECAWM;
@@ -949,17 +933,13 @@ screen_save_cursor(Screen *self) {
 
 void
 screen_save_modes(Screen *self) {
-    ScreenModes *m;
-    buffer_push(&self->modes_savepoints, m);
-    *m = self->modes;
+    self->modes_savepoint = self->modes;
 }
 
 void
 screen_restore_cursor(Screen *self) {
-    SavepointBuffer *pts = self->linebuf == self->main_linebuf ? &self->main_savepoints : &self->alt_savepoints;
-    Savepoint *sp;
-    buffer_pop(pts, sp);
-    if (sp == NULL) {
+    Savepoint *sp = self->linebuf == self->main_linebuf ? &self->main_savepoint : &self->alt_savepoint;
+    if (sp->cursor.x == 0 && sp->cursor.y == 0) {
         screen_cursor_position(self, 1, 1);
         screen_reset_mode(self, DECOM);
         RESET_CHARSETS;
@@ -977,9 +957,7 @@ screen_restore_cursor(Screen *self) {
 
 void
 screen_restore_modes(Screen *self) {
-    const ScreenModes *m;
-    buffer_pop(&self->modes_savepoints, m);
-    if (m == NULL) m = &empty_modes;
+    const ScreenModes *m = &self->modes_savepoint;
 #define S(name) set_mode_from_const(self, name, m->m##name)
     S(DECTCEM); S(DECSCNM); S(DECSCNM); S(DECOM); S(DECAWM); S(DECARM); S(DECCKM);
     S(BRACKETED_PASTE); S(FOCUS_TRACKING); S(EXTENDED_KEYBOARD);
